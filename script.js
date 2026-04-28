@@ -44,57 +44,51 @@ function escapeHtml(str) {
 }
 
 // ========== АВТОРИЗАЦИЯ ==========
-document.getElementById('login-btn').onclick = async () => {
-    const username = document.getElementById('login-username').value.trim();
-    const password = document.getElementById('login-password').value;
-    const users = await getUsers();
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-        currentUser = user;
-        localStorage.setItem('sg_user', JSON.stringify(user));
-        
-        document.getElementById('auth-screen').classList.remove('active');
-        document.getElementById('messenger-screen').classList.add('active');
-        document.getElementById('sidebar-name').innerText = user.username;
-        document.getElementById('sidebar-avatar').src = user.avatar;
-        document.getElementById('settings-username').innerText = user.username;
-        
-        // Создаём чат с ботом если его нет
-        const chats = await getChats();
-        const botChat = chats.find(c => c.id === `bot_${user.id}`);
-        if (!botChat) {
-            await saveChat({
-                id: `bot_${user.id}`,
-                type: 'private',
-                participants: [user.id, BOT_USER.id],
-                name: BOT_USER.username,
-                avatar: BOT_USER.avatar,
-                messages: [{
-                    id: 1,
-                    senderId: BOT_USER.id,
-                    senderName: BOT_USER.username,
-                    text: 'Привет! Я бот SpeedGram 🤖 Напиши "привет"',
-                    time: Date.now()
-                }]
-            });
-        }
-        
-        await renderChats();
-        startMessageChecker();
-    } else {
-        alert('❌ Неверный логин или пароль');
-    }
-};
+document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const tab = this.dataset.tab;
+        document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+        if (tab === 'login') document.getElementById('login-panel').classList.add('active');
+        else document.getElementById('register-panel').classList.add('active');
+    });
+});
 
-document.getElementById('register-btn').onclick = async () => {
+// Проверка юзернейма
+document.getElementById('reg-username')?.addEventListener('input', async function() {
+    const username = this.value.trim();
+    const status = document.getElementById('reg-status');
+    
+    if (username.length === 0) {
+        status.innerHTML = '';
+        return;
+    }
+    if (username.length < 3) {
+        status.innerHTML = '❌ Минимум 3 символа';
+        status.style.color = '#f0a3a3';
+        return;
+    }
+    const users = await getUsers();
+    const exists = users.find(u => u.username === username);
+    if (exists) {
+        status.innerHTML = '❌ Пользователь уже существует';
+        status.style.color = '#f0a3a3';
+    } else {
+        status.innerHTML = '✅ Имя доступно';
+        status.style.color = '#6fcf97';
+    }
+});
+
+// РЕГИСТРАЦИЯ
+document.getElementById('register-btn')?.addEventListener('click', async () => {
     const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
     const password2 = document.getElementById('reg-password2').value;
     const status = document.getElementById('reg-status');
     
     if (username.length < 3) {
-        status.innerHTML = '❌ Минимум 3 символа';
+        status.innerHTML = '❌ Имя минимум 3 символа';
         return;
     }
     if (password.length < 3) {
@@ -112,17 +106,15 @@ document.getElementById('register-btn').onclick = async () => {
         return;
     }
     
-    const newUser = {
+    await api('users', 'POST', {
         id: 'u' + Date.now(),
         username: username,
         password: password,
         avatar: 'https://i.pravatar.cc/100?img=' + Math.floor(Math.random() * 70),
         created_at: new Date().toISOString()
-    };
+    });
     
-    await api('users', 'POST', newUser);
     alert('✅ Регистрация успешна! Теперь войдите.');
-    
     document.getElementById('reg-username').value = '';
     document.getElementById('reg-password').value = '';
     document.getElementById('reg-password2').value = '';
@@ -131,7 +123,53 @@ document.getElementById('register-btn').onclick = async () => {
     document.querySelector('.auth-tab[data-tab="login"]').click();
     document.getElementById('login-username').value = username;
     document.getElementById('login-password').value = '';
-};
+});
+
+// ВХОД
+document.getElementById('login-btn')?.addEventListener('click', async () => {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    
+    const users = await getUsers();
+    const user = users.find(u => u.username === username && u.password === password);
+    if (user) {
+        loginSuccess(user);
+    } else {
+        alert('❌ Неверный логин или пароль');
+    }
+});
+
+async function loginSuccess(user) {
+    currentUser = user;
+    localStorage.setItem('sg_user', JSON.stringify(user));
+    
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('messenger-screen').classList.add('active');
+    document.getElementById('sidebar-name').innerText = user.username;
+    document.getElementById('sidebar-avatar').src = user.avatar;
+    
+    const chats = await getChats();
+    const botChat = chats.find(c => c.id === `bot_${user.id}`);
+    if (!botChat) {
+        await saveChat({
+            id: `bot_${user.id}`,
+            type: 'private',
+            participants: [user.id, BOT_USER.id],
+            name: BOT_USER.username,
+            avatar: BOT_USER.avatar,
+            messages: [{
+                id: 1,
+                senderId: BOT_USER.id,
+                senderName: BOT_USER.username,
+                text: 'Привет! Я бот SpeedGram 🤖',
+                time: Date.now()
+            }]
+        });
+    }
+    
+    await renderChats();
+    startMessageChecker();
+}
 
 // ========== ОТРИСОВКА ЧАТОВ ==========
 async function renderChats() {
@@ -236,7 +274,6 @@ async function sendMessage(text) {
     await renderMessages(activeChatId);
     await renderChats();
     
-    // Если это бот - отвечаем
     const otherId = chat.participants?.find(p => p !== currentUser.id);
     if (otherId === BOT_USER.id) {
         setTimeout(() => botReply(activeChatId, text), 500);
@@ -248,7 +285,7 @@ async function botReply(chatId, userMessage) {
     let reply = '';
     if (msg.includes('привет')) reply = 'Привет! 👋 Рад тебя видеть!';
     else if (msg.includes('как дела')) reply = 'Отлично! А у тебя?';
-    else reply = 'Привет! Я бот SpeedGram. Напиши "привет" или "как дела"';
+    else reply = 'Я бот SpeedGram. Напиши "привет" или "как дела"';
     
     const chats = await getChats();
     let chat = chats.find(c => c.id === chatId);
@@ -276,6 +313,7 @@ async function botReply(chatId, userMessage) {
 document.getElementById('search-btn').onclick = () => {
     document.getElementById('search-modal').classList.remove('hidden');
     document.getElementById('search-results').innerHTML = '';
+    document.getElementById('search-query').value = '';
 };
 
 document.getElementById('do-search').onclick = async () => {
@@ -286,19 +324,23 @@ document.getElementById('do-search').onclick = async () => {
     const results = document.getElementById('search-results');
     results.innerHTML = '';
     
+    let found = false;
     for (const user of users) {
         if (user.username.toLowerCase().includes(query) && user.id !== currentUser.id) {
+            found = true;
             const div = document.createElement('div');
-            div.className = 'account-item';
+            div.className = 'search-result-item';
             div.innerHTML = `
-                <span><img src="${user.avatar}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;"> ${escapeHtml(user.username)}</span>
-                <button class="start-chat-btn" data-id="${user.id}" data-name="${user.username}" data-avatar="${user.avatar}" style="padding:6px 12px;border-radius:16px;background:#4e9eff;color:white;border:none;cursor:pointer;">💬</button>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span><img src="${user.avatar}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;"> ${escapeHtml(user.username)}</span>
+                    <button class="start-chat-btn" data-id="${user.id}" data-name="${user.username}" data-avatar="${user.avatar}" style="padding:6px 12px;border-radius:16px;background:#4e9eff;color:white;border:none;cursor:pointer;">💬 Написать</button>
+                </div>
             `;
             results.appendChild(div);
         }
     }
     
-    if (results.innerHTML === '') {
+    if (!found) {
         results.innerHTML = '<div style="text-align:center;padding:16px;">❌ Ничего не найдено</div>';
     }
     
@@ -356,7 +398,9 @@ function startMessageChecker() {
         if (currentUser && activeChatId) {
             await renderMessages(activeChatId);
         }
-        await renderChats();
+        if (currentUser) {
+            await renderChats();
+        }
     }, 2000);
 }
 
