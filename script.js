@@ -1,5 +1,5 @@
 // ==================== КОНФИГУРАЦИЯ SUPABASE ====================
-const SUPABASE_URL = 'https://bntfmxwakwmsgskgtkgho.supabase.co';
+const SUPABASE_URL = 'https://bntfmxwakwmgskgtkgho.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudGZteHdha3dtZ3NrZ3RrZ2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODQ3OTUsImV4cCI6MjA5Mjk2MDc5NX0.JYlvN1wVUaQsw7O_w8-f_dhEHYeMQ1BUSi4ByYK2i38';
 
 // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
@@ -131,26 +131,23 @@ document.querySelectorAll('.auth-tab').forEach(btn => {
     });
 });
 
-// ПРОВЕРКА ЮЗЕРНЕЙМА ПРИ ВВОДЕ - ИСПРАВЛЕНО
+// ПРОВЕРКА ЮЗЕРНЕЙМА ПРИ ВВОДЕ
 document.getElementById('reg-username')?.addEventListener('input', async function() {
     const username = this.value.trim();
     const status = document.getElementById('reg-status');
     
-    // Если поле пустое - очищаем статус
     if (username.length === 0) {
         status.innerHTML = '';
         status.style.color = '';
         return;
     }
     
-    // Если меньше 3 символов
     if (username.length < 3) {
         status.innerHTML = '❌ Минимум 3 символа';
         status.style.color = '#f0a3a3';
         return;
     }
     
-    // Проверяем существование в базе
     const users = await loadUsers();
     const exists = findUserByUsername(username, users);
     if (exists) {
@@ -162,14 +159,13 @@ document.getElementById('reg-username')?.addEventListener('input', async functio
     }
 });
 
-// РЕГИСТРАЦИЯ - ИСПРАВЛЕНО
+// РЕГИСТРАЦИЯ
 document.getElementById('register-btn')?.addEventListener('click', async () => {
     const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
     const password2 = document.getElementById('reg-password2').value;
     const status = document.getElementById('reg-status');
     
-    // Проверки
     if (!username) {
         status.innerHTML = '❌ Введите имя пользователя';
         status.style.color = '#f0a3a3';
@@ -200,7 +196,6 @@ document.getElementById('register-btn')?.addEventListener('click', async () => {
         return;
     }
     
-    // Проверка на существующего пользователя
     const users = await loadUsers();
     if (findUserByUsername(username, users)) {
         status.innerHTML = '❌ Пользователь уже существует';
@@ -208,7 +203,6 @@ document.getElementById('register-btn')?.addEventListener('click', async () => {
         return;
     }
     
-    // Создаём пользователя
     const newUser = {
         id: 'u' + Date.now(),
         username: username,
@@ -223,13 +217,11 @@ document.getElementById('register-btn')?.addEventListener('click', async () => {
         await saveUser(newUser);
         alert('✅ Регистрация успешна! Теперь войдите.');
         
-        // Очищаем форму
         document.getElementById('reg-username').value = '';
         document.getElementById('reg-password').value = '';
         document.getElementById('reg-password2').value = '';
         status.innerHTML = '';
         
-        // Переключаемся на вход
         document.querySelector('.auth-tab[data-tab="login"]').click();
         document.getElementById('login-username').value = username;
         document.getElementById('login-password').value = '';
@@ -296,7 +288,6 @@ async function loginSuccess(user) {
         document.querySelector('.messages-container').style.backgroundColor = user.bg_color;
     }
     
-    // Создаём чат с ботом
     const chats = await loadChats();
     const botChatId = `bot_${user.id}`;
     let botChat = chats.find(c => c.id === botChatId);
