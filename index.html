@@ -2,226 +2,190 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SpeedGram — Облачный мессенджер</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedGram — Мессенджер</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0e1621;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .screen { display: none; width: 100vw; height: 100vh; }
+        .screen.active { display: flex; }
+        
+        /* АВТОРИЗАЦИЯ */
+        .auth-card {
+            width: 400px;
+            margin: auto;
+            background: #17212b;
+            padding: 32px;
+            border-radius: 32px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .logo { font-size: 28px; font-weight: bold; text-align: center; margin-bottom: 32px; color: #4e9eff; }
+        .auth-tabs { display: flex; gap: 12px; margin-bottom: 24px; }
+        .auth-tab {
+            flex: 1; background: none; border: none; padding: 12px;
+            color: #7f8fa4; font-size: 16px; cursor: pointer; border-bottom: 2px solid transparent;
+        }
+        .auth-tab.active { color: #4e9eff; border-bottom-color: #4e9eff; }
+        .auth-panel { display: none; flex-direction: column; gap: 16px; }
+        .auth-panel.active { display: flex; }
+        input, button {
+            padding: 12px 16px; border-radius: 16px; border: none; font-size: 14px;
+            background: #242f3d; color: white;
+        }
+        .btn-primary { background: #4e9eff; font-weight: bold; cursor: pointer; }
+        .btn-secondary { background: #2c3e50; cursor: pointer; }
+        .status-msg { font-size: 12px; margin-top: -8px; }
+        
+        /* МЕССЕНДЖЕР */
+        .sidebar {
+            width: 300px; background: #17212b; display: flex; flex-direction: column;
+            border-right: 1px solid #242f3d;
+        }
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .sidebar-header {
+            padding: 16px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid #242f3d;
+        }
+        .user-info { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .user-info img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+        .sidebar-actions button {
+            background: none; font-size: 20px; color: #7f8fa4; cursor: pointer; padding: 8px;
+        }
+        .chats-list { flex: 1; overflow-y: auto; }
+        .chat-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .chat-item:hover { background: #242f3d; }
+        .chat-item.active { background: #2b3b4c; }
+        .chat-item img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+        .chat-details { flex: 1; }
+        .chat-details strong { color: white; }
+        .chat-details small { color: #7f8fa4; }
+        .chat-header {
+            padding: 12px 20px; background: #17212b; border-bottom: 1px solid #242f3d;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .chat-info { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .chat-info img { width: 44px; height: 44px; border-radius: 50%; }
+        .chat-info h3 { color: white; }
+        .messages-container {
+            flex: 1; overflow-y: auto; padding: 20px; background: #0e1621;
+        }
+        .message {
+            max-width: 70%; padding: 10px 14px; border-radius: 18px;
+            margin-bottom: 10px;
+        }
+        .message.own { background: #4e9eff; align-self: flex-end; color: white; margin-left: auto; }
+        .message:not(.own) { background: #2b3b4c; color: white; }
+        .message-username { font-size: 11px; font-weight: bold; margin-bottom: 4px; display: block; opacity: 0.8; }
+        .message-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
+        .messages { display: flex; flex-direction: column; }
+        .message-input-area {
+            display: flex; gap: 12px; padding: 16px; background: #17212b;
+            border-top: 1px solid #242f3d;
+        }
+        .message-input-area input { flex: 1; }
+        .message-input-area button { background: #242f3d; cursor: pointer; }
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; align-items: center;
+            justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background: #17212b; padding: 28px; border-radius: 32px;
+            width: 400px; max-width: 90%; color: white;
+        }
+        .hidden { display: none; }
+        .account-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; background: #242f3d; border-radius: 16px; margin-bottom: 8px;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <div id="auth-screen" class="screen active">
-            <div class="auth-card">
-                <div class="logo"><i class="fab fa-telegram-plane"></i> SpeedGram</div>
-                <div class="auth-tabs">
-                    <button class="auth-tab active" data-tab="login">Вход</button>
-                    <button class="auth-tab" data-tab="register">Регистрация</button>
-                </div>
-                <div id="login-panel" class="auth-panel active">
-                    <input type="text" id="login-username" placeholder="Юзернейм">
-                    <input type="password" id="login-password" placeholder="Пароль">
-                    <button id="login-btn" class="btn-primary">Войти</button>
-                    <button id="login-code-btn" class="btn-secondary">Войти по коду</button>
-                </div>
-                <div id="register-panel" class="auth-panel">
-                    <input type="text" id="reg-username" placeholder="Юзернейм">
-                    <div id="reg-status" class="status-msg"></div>
-                    <input type="password" id="reg-password" placeholder="Пароль">
-                    <input type="password" id="reg-password2" placeholder="Повторите пароль">
-                    <button id="register-btn" class="btn-primary">Зарегистрироваться</button>
-                </div>
-            </div>
+
+<div id="auth-screen" class="screen active">
+    <div class="auth-card">
+        <div class="logo">🚀 SpeedGram</div>
+        <div class="auth-tabs">
+            <button class="auth-tab active" data-tab="login">Вход</button>
+            <button class="auth-tab" data-tab="register">Регистрация</button>
         </div>
-
-        <div id="messenger-screen" class="screen">
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <div class="user-info" id="sidebar-user">
-                        <img id="sidebar-avatar" src="">
-                        <span id="sidebar-name"></span>
-                    </div>
-                    <div class="sidebar-actions">
-                        <button id="search-btn" title="Поиск"><i class="fas fa-search"></i></button>
-                        <button id="new-group-btn" title="Группа"><i class="fas fa-users"></i></button>
-                        <button id="new-channel-btn" title="Канал"><i class="fas fa-broadcast-tower"></i></button>
-                        <button id="settings-btn" title="Настройки"><i class="fas fa-cog"></i></button>
-                    </div>
-                </div>
-                <div class="chats-search">
-                    <input type="text" id="chats-filter" placeholder="Поиск чатов...">
-                </div>
-                <div class="chats-list" id="chats-list"></div>
-            </div>
-
-            <div class="chat-area">
-                <div class="chat-header">
-                    <div class="chat-info" id="chat-info-click">
-                        <img id="chat-avatar" src="">
-                        <div>
-                            <h3 id="chat-name">Выберите чат</h3>
-                            <span id="chat-status"></span>
-                        </div>
-                    </div>
-                    <button id="chat-info-btn"><i class="fas fa-info-circle"></i></button>
-                </div>
-                <div class="messages-container" id="messages-container">
-                    <div class="messages" id="messages-list"></div>
-                </div>
-                <div class="message-input-area">
-                    <button id="attach-photo"><i class="fas fa-image"></i></button>
-                    <button id="voice-record"><i class="fas fa-microphone"></i></button>
-                    <input type="text" id="message-text" placeholder="Сообщение...">
-                    <button id="send-message"><i class="fas fa-paper-plane"></i></button>
-                </div>
-            </div>
+        <div id="login-panel" class="auth-panel active">
+            <input type="text" id="login-username" placeholder="Юзернейм">
+            <input type="password" id="login-password" placeholder="Пароль">
+            <button id="login-btn" class="btn-primary">Войти</button>
         </div>
-
-        <!-- Модальные окна -->
-        <div id="settings-modal" class="modal hidden">
-            <div class="modal-content">
-                <h2><i class="fas fa-sliders-h"></i> Настройки</h2>
-                <div class="settings-section">
-                    <div class="setting-row">
-                        <label>Аватар</label>
-                        <img id="settings-avatar" class="settings-avatar" src="">
-                        <input type="file" id="avatar-upload" accept="image/*" style="display:none">
-                        <button id="change-avatar-btn" class="btn-small">📸 Загрузить</button>
-                    </div>
-                    <div class="setting-row">
-                        <label>Фон чата</label>
-                        <div class="bg-presets">
-                            <div class="bg-preset" data-bg="#0e1621" style="background:#0e1621"></div>
-                            <div class="bg-preset" data-bg="#1a2f3f" style="background:#1a2f3f"></div>
-                            <div class="bg-preset" data-bg="#2d2d2d" style="background:#2d2d2d"></div>
-                            <div class="bg-preset" data-bg="#1a2f1f" style="background:#1a2f1f"></div>
-                            <div class="bg-preset" data-bg="#2a1f3f" style="background:#2a1f3f"></div>
-                            <div class="bg-preset" data-bg="#3d2a1f" style="background:#3d2a1f"></div>
-                        </div>
-                    </div>
-                    <div class="setting-row">
-                        <label>Тема интерфейса</label>
-                        <div class="theme-buttons">
-                            <button id="theme-dark-btn" class="btn-small">🌙 Тёмная</button>
-                            <button id="theme-light-btn" class="btn-small">☀️ Светлая</button>
-                            <button id="theme-lava-btn" class="btn-small">🔥 Лава</button>
-                        </div>
-                    </div>
-                    <div class="setting-row">
-                        <label>Звук уведомлений</label>
-                        <div class="theme-buttons">
-                            <button id="sound-on-btn" class="btn-small">🔊 Вкл</button>
-                            <button id="sound-off-btn" class="btn-small">🔇 Выкл</button>
-                        </div>
-                    </div>
-                    <div class="setting-row">
-                        <label>Аккаунты</label>
-                        <div id="accounts-list" class="accounts-list"></div>
-                        <button id="add-account-btn" class="btn-primary" style="margin-top:12px">➕ Создать аккаунт</button>
-                    </div>
-                </div>
-                <button id="close-settings" class="btn-secondary">Закрыть</button>
-            </div>
-        </div>
-
-        <div id="profile-modal" class="modal hidden">
-            <div class="modal-content profile-modal-content">
-                <div class="profile-header">
-                    <img id="profile-avatar" class="profile-avatar" src="">
-                    <h2 id="profile-username"></h2>
-                    <span id="profile-status-badge"></span>
-                </div>
-                <div class="profile-info">
-                    <div class="profile-bio">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="profile-bio">Нет описания</span>
-                    </div>
-                    <div class="profile-stats">
-                        <div class="stat">
-                            <span class="stat-value" id="profile-msg-count">0</span>
-                            <span class="stat-label">сообщений</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value" id="profile-chat-count">0</span>
-                            <span class="stat-label">чатов</span>
-                        </div>
-                    </div>
-                    <div class="profile-actions">
-                        <button id="profile-send-msg" class="btn-primary">💬 Написать</button>
-                        <button id="profile-close" class="btn-secondary">Закрыть</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="edit-msg-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Редактировать сообщение</h3>
-                <input type="text" id="edit-msg-input" placeholder="Новый текст">
-                <button id="save-edit-msg" class="btn-primary">Сохранить</button>
-                <button id="close-edit-msg" class="btn-secondary">Отмена</button>
-            </div>
-        </div>
-
-        <div id="search-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Поиск</h3>
-                <input type="text" id="search-query" placeholder="@username">
-                <button id="do-search" class="btn-primary">Найти</button>
-                <div id="search-results"></div>
-                <button id="close-search" class="btn-secondary">Закрыть</button>
-            </div>
-        </div>
-
-        <div id="group-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Создать группу</h3>
-                <input type="text" id="group-name" placeholder="Название">
-                <button id="create-group" class="btn-primary">Создать</button>
-                <button id="close-group" class="btn-secondary">Отмена</button>
-            </div>
-        </div>
-
-        <div id="channel-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Создать канал</h3>
-                <input type="text" id="channel-username" placeholder="@username">
-                <div id="channel-status" class="status-msg"></div>
-                <input type="text" id="channel-name" placeholder="Название">
-                <input type="text" id="channel-desc" placeholder="Описание">
-                <button id="create-channel" class="btn-primary">Создать</button>
-                <button id="close-channel" class="btn-secondary">Отмена</button>
-            </div>
-        </div>
-
-        <div id="code-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Введите код</h3>
-                <p id="code-display">Код отправлен</p>
-                <input type="text" id="code-input" placeholder="6 цифр">
-                <button id="verify-code" class="btn-primary">Подтвердить</button>
-                <button id="close-code" class="btn-secondary">Отмена</button>
-            </div>
-        </div>
-
-        <div id="info-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3 id="info-title">Информация</h3>
-                <div id="info-content"></div>
-                <button id="close-info" class="btn-secondary">Закрыть</button>
-            </div>
-        </div>
-
-        <div id="new-account-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Создать аккаунт</h3>
-                <input type="text" id="new-acc-username" placeholder="Юзернейм">
-                <div id="new-acc-status" class="status-msg"></div>
-                <input type="password" id="new-acc-password" placeholder="Пароль">
-                <button id="create-new-account" class="btn-primary">Создать</button>
-                <button id="close-new-acc" class="btn-secondary">Отмена</button>
-            </div>
+        <div id="register-panel" class="auth-panel">
+            <input type="text" id="reg-username" placeholder="Юзернейм">
+            <div id="reg-status" class="status-msg"></div>
+            <input type="password" id="reg-password" placeholder="Пароль">
+            <input type="password" id="reg-password2" placeholder="Повторите пароль">
+            <button id="register-btn" class="btn-primary">Зарегистрироваться</button>
         </div>
     </div>
-    <script src="script.js"></script>
+</div>
+
+<div id="messenger-screen" class="screen">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="user-info" id="sidebar-user">
+                <img id="sidebar-avatar" src="">
+                <span id="sidebar-name"></span>
+            </div>
+            <div class="sidebar-actions">
+                <button id="search-btn" title="Поиск">🔍</button>
+                <button id="settings-btn" title="Настройки">⚙️</button>
+            </div>
+        </div>
+        <div class="chats-list" id="chats-list"></div>
+    </div>
+    <div class="chat-area">
+        <div class="chat-header">
+            <div class="chat-info" id="chat-info-click">
+                <img id="chat-avatar" src="">
+                <div>
+                    <h3 id="chat-name">Выберите чат</h3>
+                    <span id="chat-status"></span>
+                </div>
+            </div>
+        </div>
+        <div class="messages-container" id="messages-container">
+            <div class="messages" id="messages-list"></div>
+        </div>
+        <div class="message-input-area">
+            <input type="text" id="message-text" placeholder="Сообщение...">
+            <button id="send-message">📤</button>
+        </div>
+    </div>
+</div>
+
+<div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+        <h2>Настройки</h2>
+        <div class="account-item">
+            <span>👤 <span id="settings-username"></span></span>
+        </div>
+        <button id="close-settings" class="btn-secondary">Закрыть</button>
+    </div>
+</div>
+
+<div id="search-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Поиск пользователей</h3>
+        <input type="text" id="search-query" placeholder="Введите имя">
+        <button id="do-search" class="btn-primary">Найти</button>
+        <div id="search-results" style="margin-top: 16px;"></div>
+        <button id="close-search" class="btn-secondary">Закрыть</button>
+    </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
