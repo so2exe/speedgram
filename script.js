@@ -133,52 +133,114 @@ document.querySelectorAll('.auth-tab').forEach(btn => {
     });
 });
 
+// Исправленная проверка юзернейма при регистрации
 document.getElementById('reg-username')?.addEventListener('input', async function() {
     const username = this.value.trim();
     const status = document.getElementById('reg-status');
-    if (username.length < 3) {
-        status.innerHTML = '❌ Минимум 3 символа';
+    
+    if (username.length === 0) {
+        status.innerHTML = '';
         return;
     }
+    
+    if (username.length < 3) {
+        status.innerHTML = '❌ Минимум 3 символа';
+        status.style.color = '#f0a3a3';
+        return;
+    }
+    
     const users = await loadUsers();
     const exists = findUserByUsername(username, users);
-    status.innerHTML = exists ? '❌ Занят' : '✅ Доступен';
-    status.style.color = exists ? '#f0a3a3' : '#6fcf97';
+    if (exists) {
+        status.innerHTML = '❌ Пользователь с таким именем уже существует';
+        status.style.color = '#f0a3a3';
+    } else {
+        status.innerHTML = '✅ Имя доступно';
+        status.style.color = '#6fcf97';
+    }
 });
 
 document.getElementById('register-btn')?.addEventListener('click', async () => {
     const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
     const password2 = document.getElementById('reg-password2').value;
-    if (!username || !password) return alert('Заполните поля');
-    if (username.length < 3) return alert('Юзернейм минимум 3 символа');
-    if (password.length < 3) return alert('Пароль минимум 3 символа');
-    if (password !== password2) return alert('Пароли не совпадают');
+    
+    // Очищаем предыдущие сообщения об ошибках
+    const status = document.getElementById('reg-status');
+    
+    if (!username || !password) {
+        status.innerHTML = '❌ Заполните все поля';
+        status.style.color = '#f0a3a3';
+        return;
+    }
+    
+    if (username.length < 3) {
+        status.innerHTML = '❌ Юзернейм должен быть минимум 3 символа';
+        status.style.color = '#f0a3a3';
+        return;
+    }
+    
+    if (password.length < 3) {
+        status.innerHTML = '❌ Пароль должен быть минимум 3 символа';
+        status.style.color = '#f0a3a3';
+        return;
+    }
+    
+    if (password !== password2) {
+        status.innerHTML = '❌ Пароли не совпадают';
+        status.style.color = '#f0a3a3';
+        return;
+    }
     
     const users = await loadUsers();
-    if (findUserByUsername(username, users)) return alert('Юзернейм занят');
+    if (findUserByUsername(username, users)) {
+        status.innerHTML = '❌ Пользователь с таким именем уже существует';
+        status.style.color = '#f0a3a3';
+        return;
+    }
     
+    // Регистрация успешна
     const newUser = {
         id: 'u' + Date.now(),
         username,
         password,
         avatar: 'https://i.pravatar.cc/100?img=' + Math.floor(Math.random() * 70),
         bio: 'Новый пользователь SpeedGram',
+        bgColor: '#0e1621',
         created_at: new Date().toISOString()
     };
     await saveUser(newUser);
-    alert('✅ Регистрация успешна! Войдите.');
+    
+    alert('✅ Регистрация успешна! Теперь войдите.');
+    
+    // Очищаем форму регистрации
+    document.getElementById('reg-username').value = '';
+    document.getElementById('reg-password').value = '';
+    document.getElementById('reg-password2').value = '';
+    status.innerHTML = '';
+    
+    // Переключаемся на вход и подставляем логин
     document.querySelector('.auth-tab[data-tab="login"]').click();
     document.getElementById('login-username').value = username;
+    document.getElementById('login-password').value = '';
 });
 
 document.getElementById('login-btn')?.addEventListener('click', async () => {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
+    
+    if (!username || !password) {
+        alert('Заполните все поля');
+        return;
+    }
+    
     const users = await loadUsers();
     const user = users.find(u => u.username === username && u.password === password);
-    if (user) loginSuccess(user);
-    else alert('Неверные данные');
+    if (user) {
+        loginSuccess(user);
+    } else {
+        alert('❌ Неверное имя пользователя или пароль');
+    }
 });
 
 document.getElementById('login-code-btn')?.addEventListener('click', async () => {
@@ -198,7 +260,10 @@ document.getElementById('verify-code')?.addEventListener('click', () => {
         loginSuccess(tempCodeUser);
         document.getElementById('code-modal').classList.add('hidden');
         tempCode = null;
-    } else alert('Неверный код');
+        document.getElementById('code-input').value = '';
+    } else {
+        alert('Неверный код');
+    }
 });
 
 async function loginSuccess(user) {
@@ -210,6 +275,11 @@ async function loginSuccess(user) {
     document.getElementById('sidebar-name').innerText = user.username;
     document.getElementById('sidebar-avatar').src = user.avatar;
     document.getElementById('settings-avatar').src = user.avatar;
+    
+    // Применяем сохранённый фон
+    if (user.bgColor) {
+        document.querySelector('.messages-container').style.backgroundColor = user.bgColor;
+    }
     
     // Создаём чат с ботом
     const chats = await loadChats();
@@ -253,19 +323,21 @@ async function renderChats() {
         let otherId = chat.participants?.find(p => p !== currentUser.id);
         let otherUser = findUserById(otherId, users);
         let name = chat.type === 'private' ? (otherUser?.username || 'unknown') : chat.name;
-        let avatar = chat.type === 'private' ? (otherUser?.avatar || 'https://via.placeholder.com/48') : (chat.avatar || 'https://via.placeholder.com/48');
+        let avatar = chat.type === 'private' ? (otherUser?.avatar || 'https://i.pravatar.cc/48?img=1') : (chat.avatar || 'https://i.pravatar.cc/48?img=1');
         let lastMsg = chat.messages?.[chat.messages.length-1]?.text || 'Нет сообщений';
+        if (chat.messages?.[chat.messages.length-1]?.type === 'image') lastMsg = '📷 Фото';
+        if (chat.messages?.[chat.messages.length-1]?.type === 'voice') lastMsg = '🎤 Голосовое';
         const unreadCount = chat.messages?.filter(m => m.senderId !== currentUser.id && !m.read).length || 0;
         
         const div = document.createElement('div');
         div.className = `chat-item ${activeChatId === chat.id ? 'active' : ''}`;
         div.innerHTML = `
-            <img src="${avatar}" onerror="this.src='https://via.placeholder.com/48'">
+            <img src="${avatar}" onerror="this.src='https://i.pravatar.cc/48?img=1'">
             <div class="chat-details">
                 <strong>${escapeHtml(name)}</strong>
                 <div><small>${escapeHtml(lastMsg.substring(0, 30))}</small></div>
             </div>
-            ${unreadCount > 0 ? `<div style="background:#4e9eff;border-radius:12px;padding:2px 8px;font-size:12px;">${unreadCount}</div>` : ''}
+            ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
         `;
         div.onclick = () => openChat(chat.id);
         container.appendChild(div);
@@ -283,7 +355,7 @@ async function openChat(chatId) {
     let otherId = chat.participants?.find(p => p !== currentUser.id);
     let otherUser = findUserById(otherId, users);
     let name = chat.type === 'private' ? (otherUser?.username || 'unknown') : chat.name;
-    let avatar = chat.type === 'private' ? (otherUser?.avatar || 'https://via.placeholder.com/48') : (chat.avatar || 'https://via.placeholder.com/48');
+    let avatar = chat.type === 'private' ? (otherUser?.avatar || 'https://i.pravatar.cc/44?img=1') : (chat.avatar || 'https://i.pravatar.cc/44?img=1');
     
     document.getElementById('chat-name').innerText = name;
     document.getElementById('chat-avatar').src = avatar;
@@ -322,7 +394,7 @@ async function renderMessages(chatId) {
     container.innerHTML = '';
     
     if (!chat.messages || chat.messages.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#7f8fa4;">Напишите первое сообщение</div>';
+        container.innerHTML = '<div class="no-messages">💬 Напишите первое сообщение</div>';
         return;
     }
     
@@ -336,9 +408,9 @@ async function renderMessages(chatId) {
         div.className = className;
         
         let content = '';
-        if (msg.type === 'text') content = `<div class="message-text">${escapeHtml(msg.text)}${msg.edited ? ' <small>(ред.)</small>' : ''}</div>`;
-        if (msg.type === 'image') content = `<img src="${msg.url}" style="max-width:200px;border-radius:12px;"><div class="message-text">${escapeHtml(msg.caption||'')}</div>`;
-        if (msg.type === 'voice') content = `<audio controls src="${msg.url}" style="max-width:200px;"></audio>`;
+        if (msg.type === 'text') content = `<div class="message-text">${escapeHtml(msg.text)}${msg.edited ? ' <small class="edited">(ред.)</small>' : ''}</div>`;
+        if (msg.type === 'image') content = `<img src="${msg.url}" class="message-image"><div class="message-text">${escapeHtml(msg.caption||'')}</div>`;
+        if (msg.type === 'voice') content = `<audio controls src="${msg.url}" class="message-audio"></audio>`;
         
         const time = new Date(msg.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         
@@ -432,6 +504,44 @@ async function sendMessage(type, content, caption = '') {
     lastMessagesCount[activeChatId] = chat.messages.length;
     await renderMessages(activeChatId);
     await renderChats();
+    
+    // Простой ответ бота
+    if (type === 'text' && chat.participants && chat.participants.includes(BOT_USER.id)) {
+        setTimeout(() => botReply(activeChatId, content), 500);
+    }
+}
+
+// Простой ответ бота
+async function botReply(chatId, userMessage) {
+    const msg = userMessage.toLowerCase();
+    let reply = '';
+    if (msg.includes('привет')) reply = 'Привет! 👋';
+    else if (msg.includes('как дела')) reply = 'Отлично! А у тебя?';
+    else if (msg.includes('помощь')) reply = 'Я бот SpeedGram. Напиши "привет" или "как дела"';
+    else reply = 'Я бот SpeedGram. Напиши "помощь" для команд.';
+    
+    const chats = await loadChats();
+    let chat = chats.find(c => c.id === chatId);
+    if (chat) {
+        const botMsg = {
+            id: Date.now(),
+            senderId: BOT_USER.id,
+            senderName: BOT_USER.username,
+            type: 'text',
+            text: reply,
+            time: Date.now(),
+            read: false,
+            edited: false
+        };
+        if (!chat.messages) chat.messages = [];
+        chat.messages.push(botMsg);
+        await saveChat(chat);
+        lastMessagesCount[chatId] = chat.messages.length;
+        if (activeChatId === chatId) {
+            await renderMessages(chatId);
+        }
+        await renderChats();
+    }
 }
 
 // Отправка сообщения
@@ -505,12 +615,7 @@ document.getElementById('avatar-upload')?.addEventListener('change', async (e) =
     const reader = new FileReader();
     reader.onload = async (ev) => {
         currentUser.avatar = ev.target.result;
-        const users = await loadUsers();
-        const idx = users.findIndex(u => u.id === currentUser.id);
-        if (idx !== -1) {
-            users[idx] = currentUser;
-            await supabaseRequest(`users?id=eq.${currentUser.id}`, 'PUT', currentUser);
-        }
+        await supabaseRequest(`users?id=eq.${currentUser.id}`, 'PUT', currentUser);
         document.getElementById('sidebar-avatar').src = currentUser.avatar;
         document.getElementById('settings-avatar').src = currentUser.avatar;
         await renderChats();
@@ -524,44 +629,24 @@ document.querySelectorAll('.bg-preset').forEach(preset => {
         const color = preset.dataset.bg;
         currentUser.bgColor = color;
         document.querySelector('.messages-container').style.backgroundColor = color;
-        const users = await loadUsers();
-        const idx = users.findIndex(u => u.id === currentUser.id);
-        if (idx !== -1) {
-            users[idx] = currentUser;
-            await supabaseRequest(`users?id=eq.${currentUser.id}`, 'PUT', currentUser);
-        }
+        await supabaseRequest(`users?id=eq.${currentUser.id}`, 'PUT', currentUser);
     });
 });
 
 // Темы
 document.getElementById('theme-dark-btn')?.addEventListener('click', () => {
-    document.body.classList.remove('light', 'lava', 'ocean', 'sunset', 'forest');
+    document.body.classList.remove('light', 'lava');
     localStorage.setItem('sg_theme', 'dark');
 });
 document.getElementById('theme-light-btn')?.addEventListener('click', () => {
-    document.body.classList.remove('lava', 'ocean', 'sunset', 'forest');
+    document.body.classList.remove('lava');
     document.body.classList.add('light');
     localStorage.setItem('sg_theme', 'light');
 });
 document.getElementById('theme-lava-btn')?.addEventListener('click', () => {
-    document.body.classList.remove('light', 'ocean', 'sunset', 'forest');
+    document.body.classList.remove('light');
     document.body.classList.add('lava');
     localStorage.setItem('sg_theme', 'lava');
-});
-document.getElementById('theme-ocean-btn')?.addEventListener('click', () => {
-    document.body.classList.remove('light', 'lava', 'sunset', 'forest');
-    document.body.classList.add('ocean');
-    localStorage.setItem('sg_theme', 'ocean');
-});
-document.getElementById('theme-sunset-btn')?.addEventListener('click', () => {
-    document.body.classList.remove('light', 'lava', 'ocean', 'forest');
-    document.body.classList.add('sunset');
-    localStorage.setItem('sg_theme', 'sunset');
-});
-document.getElementById('theme-forest-btn')?.addEventListener('click', () => {
-    document.body.classList.remove('light', 'lava', 'ocean', 'sunset');
-    document.body.classList.add('forest');
-    localStorage.setItem('sg_theme', 'forest');
 });
 
 // Звук
@@ -577,12 +662,9 @@ document.getElementById('sound-off-btn')?.addEventListener('click', () => {
 
 function restoreTheme() {
     const savedTheme = localStorage.getItem('sg_theme');
-    document.body.classList.remove('light', 'lava', 'ocean', 'sunset', 'forest');
+    document.body.classList.remove('light', 'lava');
     if (savedTheme === 'light') document.body.classList.add('light');
     else if (savedTheme === 'lava') document.body.classList.add('lava');
-    else if (savedTheme === 'ocean') document.body.classList.add('ocean');
-    else if (savedTheme === 'sunset') document.body.classList.add('sunset');
-    else if (savedTheme === 'forest') document.body.classList.add('forest');
 }
 
 async function updateAccountsList() {
@@ -659,6 +741,9 @@ document.getElementById('do-search')?.addEventListener('click', async () => {
             results.appendChild(div);
         }
     }
+    if (results.innerHTML === '') {
+        results.innerHTML = '<div class="search-result-item">❌ Ничего не найдено</div>';
+    }
 });
 
 document.getElementById('close-search')?.addEventListener('click', () => {
@@ -667,8 +752,7 @@ document.getElementById('close-search')?.addEventListener('click', () => {
 
 // ==================== ПРОФИЛЬ ====================
 function showUserProfile(userId) {
-    // Функция для показа профиля (можно добавить позже)
-    alert('Функция профиля будет добавлена');
+    alert('Профиль пользователя будет доступен в следующем обновлении!');
 }
 
 document.getElementById('sidebar-user')?.addEventListener('click', () => {
@@ -677,6 +761,14 @@ document.getElementById('sidebar-user')?.addEventListener('click', () => {
 
 // Закрытие модалок
 document.querySelectorAll('#close-code, #close-new-acc, .modal .btn-secondary, #close-edit-msg, #profile-close, #close-info').forEach(btn => {
+    if (btn) btn.addEventListener('click', function() {
+        const modal = this.closest('.modal');
+        if (modal) modal.classList.add('hidden');
+    });
+});
+
+// Крестик для закрытия модалок
+document.querySelectorAll('.modal .close-btn, .modal-close').forEach(btn => {
     if (btn) btn.addEventListener('click', function() {
         const modal = this.closest('.modal');
         if (modal) modal.classList.add('hidden');
