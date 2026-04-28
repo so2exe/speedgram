@@ -37,28 +37,26 @@ async function supabaseRequest(endpoint, method = 'GET', body = null) {
 }
 
 async function loadUsers() {
-    return await supabaseRequest('users?select=*');
+    const response = await supabaseRequest('users?select=*');
+    return response || [];
 }
 
 async function saveUser(user) {
-    const users = await loadUsers();
-    const exists = users.find(u => u.id === user.id);
-    if (!exists) {
-        await supabaseRequest('users', 'POST', user);
-    }
+    return await supabaseRequest('users', 'POST', user);
 }
 
 async function loadChats() {
-    return await supabaseRequest('chats?select=*');
+    const response = await supabaseRequest('chats?select=*');
+    return response || [];
 }
 
 async function saveChat(chat) {
     const chats = await loadChats();
     const exists = chats.find(c => c.id === chat.id);
     if (exists) {
-        await supabaseRequest(`chats?id=eq.${chat.id}`, 'PUT', chat);
+        return await supabaseRequest(`chats?id=eq.${chat.id}`, 'PUT', chat);
     } else {
-        await supabaseRequest('chats', 'POST', chat);
+        return await supabaseRequest('chats', 'POST', chat);
     }
 }
 
@@ -133,26 +131,30 @@ document.querySelectorAll('.auth-tab').forEach(btn => {
     });
 });
 
-// Исправленная проверка юзернейма при регистрации
+// ПРОВЕРКА ЮЗЕРНЕЙМА ПРИ ВВОДЕ - ИСПРАВЛЕНО
 document.getElementById('reg-username')?.addEventListener('input', async function() {
     const username = this.value.trim();
     const status = document.getElementById('reg-status');
     
+    // Если поле пустое - очищаем статус
     if (username.length === 0) {
         status.innerHTML = '';
+        status.style.color = '';
         return;
     }
     
+    // Если меньше 3 символов
     if (username.length < 3) {
         status.innerHTML = '❌ Минимум 3 символа';
         status.style.color = '#f0a3a3';
         return;
     }
     
+    // Проверяем существование в базе
     const users = await loadUsers();
     const exists = findUserByUsername(username, users);
     if (exists) {
-        status.innerHTML = '❌ Пользователь с таким именем уже существует';
+        status.innerHTML = '❌ Пользователь уже существует';
         status.style.color = '#f0a3a3';
     } else {
         status.innerHTML = '✅ Имя доступно';
@@ -160,22 +162,28 @@ document.getElementById('reg-username')?.addEventListener('input', async functio
     }
 });
 
+// РЕГИСТРАЦИЯ - ИСПРАВЛЕНО
 document.getElementById('register-btn')?.addEventListener('click', async () => {
     const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
     const password2 = document.getElementById('reg-password2').value;
-    
-    // Очищаем предыдущие сообщения об ошибках
     const status = document.getElementById('reg-status');
     
-    if (!username || !password) {
-        status.innerHTML = '❌ Заполните все поля';
+    // Проверки
+    if (!username) {
+        status.innerHTML = '❌ Введите имя пользователя';
         status.style.color = '#f0a3a3';
         return;
     }
     
     if (username.length < 3) {
-        status.innerHTML = '❌ Юзернейм должен быть минимум 3 символа';
+        status.innerHTML = '❌ Имя пользователя должно быть минимум 3 символа';
+        status.style.color = '#f0a3a3';
+        return;
+    }
+    
+    if (!password) {
+        status.innerHTML = '❌ Введите пароль';
         status.style.color = '#f0a3a3';
         return;
     }
@@ -192,39 +200,47 @@ document.getElementById('register-btn')?.addEventListener('click', async () => {
         return;
     }
     
+    // Проверка на существующего пользователя
     const users = await loadUsers();
     if (findUserByUsername(username, users)) {
-        status.innerHTML = '❌ Пользователь с таким именем уже существует';
+        status.innerHTML = '❌ Пользователь уже существует';
         status.style.color = '#f0a3a3';
         return;
     }
     
-    // Регистрация успешна
+    // Создаём пользователя
     const newUser = {
         id: 'u' + Date.now(),
-        username,
-        password,
+        username: username,
+        password: password,
         avatar: 'https://i.pravatar.cc/100?img=' + Math.floor(Math.random() * 70),
         bio: 'Новый пользователь SpeedGram',
-        bgColor: '#0e1621',
+        bg_color: '#0e1621',
         created_at: new Date().toISOString()
     };
-    await saveUser(newUser);
     
-    alert('✅ Регистрация успешна! Теперь войдите.');
-    
-    // Очищаем форму регистрации
-    document.getElementById('reg-username').value = '';
-    document.getElementById('reg-password').value = '';
-    document.getElementById('reg-password2').value = '';
-    status.innerHTML = '';
-    
-    // Переключаемся на вход и подставляем логин
-    document.querySelector('.auth-tab[data-tab="login"]').click();
-    document.getElementById('login-username').value = username;
-    document.getElementById('login-password').value = '';
+    try {
+        await saveUser(newUser);
+        alert('✅ Регистрация успешна! Теперь войдите.');
+        
+        // Очищаем форму
+        document.getElementById('reg-username').value = '';
+        document.getElementById('reg-password').value = '';
+        document.getElementById('reg-password2').value = '';
+        status.innerHTML = '';
+        
+        // Переключаемся на вход
+        document.querySelector('.auth-tab[data-tab="login"]').click();
+        document.getElementById('login-username').value = username;
+        document.getElementById('login-password').value = '';
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        status.innerHTML = '❌ Ошибка сервера. Попробуйте позже.';
+        status.style.color = '#f0a3a3';
+    }
 });
 
+// ВХОД
 document.getElementById('login-btn')?.addEventListener('click', async () => {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
@@ -276,9 +292,8 @@ async function loginSuccess(user) {
     document.getElementById('sidebar-avatar').src = user.avatar;
     document.getElementById('settings-avatar').src = user.avatar;
     
-    // Применяем сохранённый фон
-    if (user.bgColor) {
-        document.querySelector('.messages-container').style.backgroundColor = user.bgColor;
+    if (user.bg_color) {
+        document.querySelector('.messages-container').style.backgroundColor = user.bg_color;
     }
     
     // Создаём чат с ботом
@@ -337,7 +352,7 @@ async function renderChats() {
                 <strong>${escapeHtml(name)}</strong>
                 <div><small>${escapeHtml(lastMsg.substring(0, 30))}</small></div>
             </div>
-            ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+            ${unreadCount > 0 ? `<div class="unread-badge" style="background:#4e9eff;border-radius:12px;padding:2px 8px;font-size:12px;">${unreadCount}</div>` : ''}
         `;
         div.onclick = () => openChat(chat.id);
         container.appendChild(div);
@@ -394,7 +409,7 @@ async function renderMessages(chatId) {
     container.innerHTML = '';
     
     if (!chat.messages || chat.messages.length === 0) {
-        container.innerHTML = '<div class="no-messages">💬 Напишите первое сообщение</div>';
+        container.innerHTML = '<div class="no-messages" style="text-align:center;padding:40px;color:#7f8fa4;">💬 Напишите первое сообщение</div>';
         return;
     }
     
@@ -408,9 +423,9 @@ async function renderMessages(chatId) {
         div.className = className;
         
         let content = '';
-        if (msg.type === 'text') content = `<div class="message-text">${escapeHtml(msg.text)}${msg.edited ? ' <small class="edited">(ред.)</small>' : ''}</div>`;
-        if (msg.type === 'image') content = `<img src="${msg.url}" class="message-image"><div class="message-text">${escapeHtml(msg.caption||'')}</div>`;
-        if (msg.type === 'voice') content = `<audio controls src="${msg.url}" class="message-audio"></audio>`;
+        if (msg.type === 'text') content = `<div class="message-text">${escapeHtml(msg.text)}${msg.edited ? ' <small class="edited" style="opacity:0.6;">(ред.)</small>' : ''}</div>`;
+        if (msg.type === 'image') content = `<img src="${msg.url}" style="max-width:200px;border-radius:12px;"><div class="message-text">${escapeHtml(msg.caption||'')}</div>`;
+        if (msg.type === 'voice') content = `<audio controls src="${msg.url}" style="max-width:200px;"></audio>`;
         
         const time = new Date(msg.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         
@@ -418,7 +433,7 @@ async function renderMessages(chatId) {
             <strong class="message-username">${escapeHtml(msg.senderName)}</strong>
             ${content}
             <div class="message-time">${time}</div>
-            ${isOwn ? `<div class="message-actions"><button class="edit-msg-btn" data-msg-id="${msg.id}" data-msg-text="${escapeHtml(msg.text)}">✏️ Ред.</button><button class="delete-msg-btn" data-msg-id="${msg.id}">🗑️ Уд.</button></div>` : ''}
+            ${isOwn ? `<div class="message-actions" style="display:flex;gap:8px;margin-top:6px;justify-content:flex-end;"><button class="edit-msg-btn" data-msg-id="${msg.id}" data-msg-text="${escapeHtml(msg.text)}" style="background:rgba(78,158,255,0.8);border:none;border-radius:12px;padding:4px 8px;font-size:10px;cursor:pointer;color:white;">✏️ Ред.</button><button class="delete-msg-btn" data-msg-id="${msg.id}" style="background:rgba(255,85,85,0.8);border:none;border-radius:12px;padding:4px 8px;font-size:10px;cursor:pointer;color:white;">🗑️ Уд.</button></div>` : ''}
         `;
         container.appendChild(div);
     }
@@ -505,13 +520,11 @@ async function sendMessage(type, content, caption = '') {
     await renderMessages(activeChatId);
     await renderChats();
     
-    // Простой ответ бота
     if (type === 'text' && chat.participants && chat.participants.includes(BOT_USER.id)) {
         setTimeout(() => botReply(activeChatId, content), 500);
     }
 }
 
-// Простой ответ бота
 async function botReply(chatId, userMessage) {
     const msg = userMessage.toLowerCase();
     let reply = '';
@@ -598,7 +611,6 @@ document.getElementById('voice-record')?.addEventListener('mouseup', () => {
 // ==================== НАСТРОЙКИ ====================
 document.getElementById('settings-btn')?.addEventListener('click', () => {
     document.getElementById('settings-modal').classList.remove('hidden');
-    updateAccountsList();
 });
 
 document.getElementById('close-settings')?.addEventListener('click', () => {
@@ -621,16 +633,6 @@ document.getElementById('avatar-upload')?.addEventListener('change', async (e) =
         await renderChats();
     };
     reader.readAsDataURL(file);
-});
-
-// Фоны чата
-document.querySelectorAll('.bg-preset').forEach(preset => {
-    preset.addEventListener('click', async () => {
-        const color = preset.dataset.bg;
-        currentUser.bgColor = color;
-        document.querySelector('.messages-container').style.backgroundColor = color;
-        await supabaseRequest(`users?id=eq.${currentUser.id}`, 'PUT', currentUser);
-    });
 });
 
 // Темы
@@ -665,40 +667,6 @@ function restoreTheme() {
     document.body.classList.remove('light', 'lava');
     if (savedTheme === 'light') document.body.classList.add('light');
     else if (savedTheme === 'lava') document.body.classList.add('lava');
-}
-
-async function updateAccountsList() {
-    const users = await loadUsers();
-    const container = document.getElementById('accounts-list');
-    container.innerHTML = '';
-    users.slice(0, 3).forEach(u => {
-        const div = document.createElement('div');
-        div.className = 'account-item';
-        div.innerHTML = `
-            <span><img src="${u.avatar}" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;"> ${u.username}</span>
-            ${u.id !== currentUser.id ? `<button class="btn-small switch-acc-btn" data-id="${u.id}">Переключиться</button>` : '<span>✅ текущий</span>'}
-        `;
-        container.appendChild(div);
-    });
-    document.querySelectorAll('.switch-acc-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const users = await loadUsers();
-            const newUser = users.find(u => u.id === btn.dataset.id);
-            if (newUser && newUser.id !== currentUser.id) {
-                currentUser = newUser;
-                localStorage.setItem('sg_current_user_id', currentUser.id);
-                document.getElementById('sidebar-name').innerText = currentUser.username;
-                document.getElementById('sidebar-avatar').src = currentUser.avatar;
-                document.querySelector('.messages-container').style.backgroundColor = currentUser.bgColor || '#0e1621';
-                await renderChats();
-                activeChatId = null;
-                document.getElementById('chat-name').innerText = 'Выберите чат';
-                document.getElementById('messages-list').innerHTML = '';
-                updateAccountsList();
-                alert(`Переключено на ${currentUser.username}`);
-            }
-        });
-    });
 }
 
 // ==================== ПОИСК ====================
@@ -751,24 +719,12 @@ document.getElementById('close-search')?.addEventListener('click', () => {
 });
 
 // ==================== ПРОФИЛЬ ====================
-function showUserProfile(userId) {
-    alert('Профиль пользователя будет доступен в следующем обновлении!');
-}
-
 document.getElementById('sidebar-user')?.addEventListener('click', () => {
-    showUserProfile(currentUser.id);
+    alert('Профиль пользователя будет доступен в следующем обновлении!');
 });
 
 // Закрытие модалок
 document.querySelectorAll('#close-code, #close-new-acc, .modal .btn-secondary, #close-edit-msg, #profile-close, #close-info').forEach(btn => {
-    if (btn) btn.addEventListener('click', function() {
-        const modal = this.closest('.modal');
-        if (modal) modal.classList.add('hidden');
-    });
-});
-
-// Крестик для закрытия модалок
-document.querySelectorAll('.modal .close-btn, .modal-close').forEach(btn => {
     if (btn) btn.addEventListener('click', function() {
         const modal = this.closest('.modal');
         if (modal) modal.classList.add('hidden');
