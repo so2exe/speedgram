@@ -2,92 +2,199 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SpeedGram — Мессенджер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0A0F">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>🌋 Garant Bot</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <div id="app">
-        <div id="auth-screen" class="screen active">
-            <div class="auth-card">
-                <div class="logo"><i class="fab fa-telegram-plane"></i> SpeedGram</div>
-                <div class="auth-tabs">
-                    <button class="auth-tab active" data-tab="login">Вход</button>
-                    <button class="auth-tab" data-tab="register">Регистрация</button>
-                </div>
-                <div id="login-panel" class="auth-panel active">
-                    <input type="text" id="login-username" placeholder="Юзернейм">
-                    <input type="password" id="login-password" placeholder="Пароль">
-                    <button id="login-btn" class="btn-primary">Войти</button>
-                </div>
-                <div id="register-panel" class="auth-panel">
-                    <input type="text" id="reg-username" placeholder="Юзернейм">
-                    <div id="reg-status" class="status-msg"></div>
-                    <input type="password" id="reg-password" placeholder="Пароль">
-                    <input type="password" id="reg-password2" placeholder="Повторите пароль">
-                    <button id="register-btn" class="btn-primary">Зарегистрироваться</button>
-                </div>
-            </div>
-        </div>
+    <!-- Лава-фон -->
+    <div class="lava-background">
+        <div class="lava-blob blob-1"></div>
+        <div class="lava-blob blob-2"></div>
+        <div class="lava-blob blob-3"></div>
+    </div>
 
-        <div id="messenger-screen" class="screen">
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <div class="user-info" id="sidebar-user">
-                        <img id="sidebar-avatar" src="">
-                        <span id="sidebar-name"></span>
-                    </div>
-                    <div class="sidebar-actions">
-                        <button id="search-btn" title="Поиск"><i class="fas fa-search"></i></button>
-                        <button id="settings-btn" title="Настройки"><i class="fas fa-cog"></i></button>
+    <div class="app-container">
+        <!-- Заголовок -->
+        <header class="app-header">
+            <h1 class="app-logo">🌋 GARANT</h1>
+            <div class="online-badge">
+                <span class="pulse-dot"></span>
+                <span id="onlineCount">47</span>
+                <span class="online-text">онлайн</span>
+            </div>
+        </header>
+
+        <!-- Контент -->
+        <main class="main-content">
+            <!-- Экран: Создать сделку -->
+            <div id="createDealScreen" class="screen active">
+                <h2 class="screen-title">Создать новую сделку</h2>
+
+                <div class="card glass-card">
+                    <div class="photo-upload" id="photoUpload">
+                        <div class="photo-placeholder">
+                            <span class="photo-icon">📸</span>
+                            <p>Нажмите, чтобы загрузить фото</p>
+                        </div>
+                        <input type="file" id="photoInput" accept="image/*" style="display: none;">
                     </div>
                 </div>
-                <div class="chats-list" id="chats-list"></div>
+
+                <div class="card glass-card">
+                    <label class="input-label">📝 Название товара</label>
+                    <input type="text" id="dealTitle" class="app-input" placeholder="Например: iPhone 15 Pro Max">
+                </div>
+
+                <div class="card glass-card">
+                    <label class="input-label">💬 Описание</label>
+                    <textarea id="dealDescription" class="app-input app-textarea" placeholder="Подробно опишите товар или услугу..." rows="3"></textarea>
+                </div>
+
+                <div class="price-row">
+                    <div class="card glass-card price-card">
+                        <label class="input-label">⭐ Цена в звёздах</label>
+                        <input type="number" id="priceStars" class="app-input" placeholder="0" min="0">
+                    </div>
+                    <div class="card glass-card price-card">
+                        <label class="input-label">💰 Цена в рублях</label>
+                        <input type="number" id="priceRub" class="app-input" placeholder="0" min="0">
+                    </div>
+                </div>
+
+                <button class="lava-button" onclick="createDeal()">
+                    <span class="button-text">🌋 СОЗДАТЬ СДЕЛКУ</span>
+                    <span class="button-shine"></span>
+                </button>
             </div>
 
-            <div class="chat-area">
-                <div class="chat-header">
-                    <div class="chat-info" id="chat-info-click">
-                        <img id="chat-avatar" src="">
-                        <div>
-                            <h3 id="chat-name">Выберите чат</h3>
-                            <span id="chat-status"></span>
+            <!-- Экран: Профиль -->
+            <div id="profileScreen" class="screen">
+                <div class="profile-header card glass-card">
+                    <div class="avatar-wrapper">
+                        <div class="avatar" id="userAvatar">👤</div>
+                    </div>
+                    <h2 id="userName">Пользователь</h2>
+                    <p id="userTag">@username</p>
+                </div>
+
+                <div class="card glass-card rating-card">
+                    <div class="stars" id="ratingStars">⭐⭐⭐⭐☆</div>
+                    <p class="rating-value" id="ratingValue">4.2 / 5.0</p>
+                </div>
+
+                <div class="stats-row">
+                    <div class="card glass-card stat-card success-card">
+                        <span class="stat-icon">✅</span>
+                        <h3 id="successDeals">0</h3>
+                        <p>Успешных</p>
+                    </div>
+                    <div class="card glass-card stat-card fail-card">
+                        <span class="stat-icon">❌</span>
+                        <h3 id="failedDeals">0</h3>
+                        <p>Провалов</p>
+                    </div>
+                    <div class="card glass-card stat-card total-card">
+                        <span class="stat-icon">📦</span>
+                        <h3 id="totalDeals">0</h3>
+                        <p>Всего</p>
+                    </div>
+                </div>
+
+                <div class="card glass-card balance-card">
+                    <p class="balance-label">💰 Баланс</p>
+                    <h2 id="balance">0 ⭐ | 0 ₽</h2>
+                </div>
+
+                <div class="card glass-card deals-list-card">
+                    <h3>📊 Мои последние сделки</h3>
+                    <div id="dealsList">
+                        <div class="deal-item-empty">Загрузка...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран: Рейтинг -->
+            <div id="ratingScreen" class="screen">
+                <h2 class="screen-title">🏆 Топ продавцов</h2>
+                <div id="topSellers" class="top-sellers-list">
+                    <!-- Заполняется через JS -->
+                </div>
+                <div class="card glass-card">
+                    <input type="text" id="searchSeller" class="app-input" placeholder="🔍 Поиск продавца...">
+                </div>
+            </div>
+
+            <!-- Экран: Мои сделки -->
+            <div id="dealsScreen" class="screen">
+                <h2 class="screen-title">📊 Мои сделки</h2>
+                <div id="allMyDeals" class="deals-full-list">
+                    <!-- Заполняется через JS -->
+                </div>
+            </div>
+
+            <!-- Экран: О сервисе -->
+            <div id="aboutScreen" class="screen">
+                <div class="card glass-card about-card">
+                    <div class="about-logo">🌋</div>
+                    <h2>Garant Bot</h2>
+                    <p class="about-version">Версия 1.0.0</p>
+
+                    <div class="about-features">
+                        <div class="feature-item">
+                            <span>🛡️</span>
+                            <p>Безопасные сделки через гаранта</p>
+                        </div>
+                        <div class="feature-item">
+                            <span>⭐</span>
+                            <p>Рейтинговая система доверия</p>
+                        </div>
+                        <div class="feature-item">
+                            <span>💎</span>
+                            <p>Оплата в Telegram Stars</p>
+                        </div>
+                        <div class="feature-item">
+                            <span>🔒</span>
+                            <p>Защита от мошенников</p>
                         </div>
                     </div>
-                </div>
-                <div class="messages-container" id="messages-container">
-                    <div class="messages" id="messages-list"></div>
-                </div>
-                <div class="message-input-area">
-                    <input type="text" id="message-text" placeholder="Сообщение...">
-                    <button id="send-message"><i class="fas fa-paper-plane"></i></button>
-                </div>
-            </div>
-        </div>
 
-        <div id="settings-modal" class="modal hidden">
-            <div class="modal-content">
-                <h2><i class="fas fa-sliders-h"></i> Настройки</h2>
-                <div class="setting-row">
-                    <label>Аккаунт</label>
-                    <div class="account-item" id="settings-account-info"></div>
+                    <div class="online-info card glass-card">
+                        <p>👥 Пользователей онлайн: <span id="aboutOnline">47</span></p>
+                    </div>
                 </div>
-                <button id="close-settings" class="btn-secondary">Закрыть</button>
             </div>
-        </div>
+        </main>
 
-        <div id="search-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3><i class="fas fa-search"></i> Поиск</h3>
-                <input type="text" id="search-query" placeholder="Введите имя пользователя">
-                <button id="do-search" class="btn-primary">Найти</button>
-                <div id="search-results" style="margin-top: 16px;"></div>
-                <button id="close-search" class="btn-secondary">Закрыть</button>
-            </div>
-        </div>
+        <!-- Нижняя навигация -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-screen="createDealScreen">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Создать</span>
+            </button>
+            <button class="nav-btn" data-screen="profileScreen">
+                <span class="nav-icon">👤</span>
+                <span class="nav-text">Профиль</span>
+            </button>
+            <button class="nav-btn" data-screen="ratingScreen">
+                <span class="nav-icon">⭐</span>
+                <span class="nav-text">Рейтинг</span>
+            </button>
+            <button class="nav-btn" data-screen="dealsScreen">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Сделки</span>
+            </button>
+            <button class="nav-btn" data-screen="aboutScreen">
+                <span class="nav-icon">ℹ️</span>
+                <span class="nav-text">О нас</span>
+            </button>
+        </nav>
     </div>
-    <script src="script.js"></script>
+
+    <script src="app.js"></script>
 </body>
 </html>
